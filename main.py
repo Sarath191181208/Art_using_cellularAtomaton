@@ -2,7 +2,7 @@ import pygame
 import random 
 import numpy as np
 from threading import Thread
-
+from numba import njit
 from colors import *
 
 # profiling tools
@@ -79,32 +79,29 @@ class Grid():
         self.matrix = np.array(self.matrix, dtype=np.int8)
         self.draw()
     
-    def create(self):
-        tmp_matrix = self.matrix.copy()
-
-        for i,row in enumerate(self.cubes):
-            for j,cube in enumerate(row):
-
-                nxt_val = (self.matrix[i][j] + 1)% self.n 
-
-                if ( nxt_val == self.matrix[i][(j+1)%(self.cols)]
-                or  nxt_val == self.matrix[(i+1)%(self.rows)][j]    
-                or  nxt_val == self.matrix[(i-1+self.rows)%(self.rows)][j] 
-                or  nxt_val == self.matrix[i][((j-1)+(self.rows)%(self.rows))] ):
-                    tmp_matrix[i][j] = nxt_val
-                    # print(tmp_matrix[i][j] == self.matrix[i][j])
-                    cube.change_color(self.colors[nxt_val])
-
-
-        self.matrix = tmp_matrix.copy()
-    
     def clicked(self):
         pass
 
     def update(self):
-        self.create()
+        self.matrix = create(self.matrix, self.rows, self.cols, self.n)
         self.draw()
 
+@njit
+def create(mat, rows, cols, n):
+    tmp_matrix = mat.copy()
+
+    for i in range(rows -1):
+        for j in range(cols -1):
+
+            nxt_val = (mat[i][j] + 1)% n 
+
+            if ( nxt_val == mat[i][(j+1)%(cols)]
+            or  nxt_val == mat[(i+1)%(rows)][j]    
+            or  nxt_val == mat[(i-1+rows)%(rows)][j] 
+            or  nxt_val == mat[i][((j-1)+(rows)%(rows))] ):
+                tmp_matrix[i][j] = nxt_val
+
+    return(tmp_matrix.copy())
 class Cube():
     def __init__(self, value, row, col, width, height, cols, rows,win):
         self.val = value
@@ -136,13 +133,13 @@ class Cube():
 def main():
     run = True
 
-    rows = 100
+    rows = 50
 
     board = Grid(cols=rows, rows=rows, width=500, height=500, WIN= WIN)
     board.iter()
 
     # while run:
-    for _ in range(10):
+    for _ in range(1000):
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
